@@ -6,6 +6,6 @@ Contiene todos los archivos .py:
 # Utilización
 Las acciones disponibles para consultar van a ser las de las empresas: Apple, Microsoft, Alphabet, Amazon, Nvidia, JPMorgan, Goldman Sachs, Coca-Cola, McDonald's, Tesla, ExxonMobil, Johnson & Johnson, Pfizer. Por otro lado, los índices serán: S & P 500, Nasdaq, Dow Jones, Euro Stoxx, Nikkei, MSCI World. Las APIs disponible son: yfinance. El modo de ejecución es el siguiente:
 
-python main.py --accion [Accion] --indice [Indice] --api [API] --fechaInicio [fechaInicio]. 
-Ejemplos de uso serían python main.py --accion Apple --api yfinance --fechaInicio 23-12-2001 o python main.py --indice Nasdaq --api yfinance --fechaInicio 23-12-2001. Importante en el caso de nombres con el carácter & pasarlos entrecomillados, python main.py --accion "Johnson & Johnson" --api yfinance --fechaInicio 23-12-2001.       
+python main.py --accion [Accion] --indice [Indice] --api [API] --fechaInicio [fechaInicio] --fechaFinal [fechaFinal]. 
+Ejemplos de uso serían python main.py --accion Apple --api yfinance --fechaInicio 23-12-2001 --fechaFinal 23-12-2002 o python main.py --indice Nasdaq --api yfinance --fechaInicio 23-12-2001 --fechaFinal 23-12-2002. Importante en el caso de nombres con el carácter & pasarlos entrecomillados, python main.py --accion "Johnson & Johnson" --api yfinance --fechaInicio 23-12-2001 --fechaFinal 23-12-2002.       
 
