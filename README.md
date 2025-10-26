@@ -13,8 +13,27 @@ La siguiente imagen representa el flujo de trabajo del proyecto, y como los prog
 ![](Diagrama.png)
 
 # Utilización
-Las acciones disponibles para consultar van a ser las de las empresas: Apple, Microsoft, Alphabet, Amazon, Nvidia, JPMorgan, Goldman Sachs, Coca-Cola, McDonald's, Tesla, ExxonMobil, Johnson & Johnson, Pfizer. Por otro lado, los índices serán: S & P 500, Nasdaq, Dow Jones, Euro Stoxx, Nikkei, IBEX 35. Las APIs disponible son: yfinance. El modo de ejecución es el siguiente:
+Las acciones disponibles para consultar van a ser las de las empresas: Apple, Microsoft, Alphabet, Amazon, Nvidia, JPMorgan, Goldman Sachs, Coca-Cola, McDonald's, Tesla, ExxonMobil, Johnson & Johnson, Pfizer. Por otro lado, los índices serán: S&P 500, Nasdaq, Dow Jones, Euro Stoxx, Nikkei, IBEX 35. Las APIs disponible son: yfinance y alpha_vantage. Comencemos por el extractor. Su modo de uso es el siguiente:
 
-python main.py --accion [Accion] --indice [Indice] --api [API] --fechaInicio [fechaInicio] --fechaFinal [fechaFinal]. 
-Ejemplos de uso serían python main.py --accion Apple --api yfinance --fechaInicio 23-12-2001 --fechaFinal 23-12-2002 o python main.py --indice Nasdaq --api yfinance --fechaInicio 23-12-2001 --fechaFinal 23-12-2002. Importante, en el caso de nombres con el carácter & o con espacios, pasarlos entrecomillados, python main.py --accion "Johnson & Johnson" --api yfinance --fechaInicio 23-12-2001 --fechaFinal 23-12-2002.       
+<pre lang="markdown"> python extractor.py --accion [Accion] --indice [Indice] --api [API] --fechasInicio [fechaInicio1] ... [fechaInicioN] --fechasFinal [fechaFinal1] ... [fechaFinalN] --rutaCSV [ruta] --infoExtra [Respuesta] --rutaJSON [ruta2] </pre>
+
+Si queremos consultar las series de precios de Apple, en yfinance, para los períodos 23/12/2015-23/12/2016, 23/12/2017-23/12/2018 y que se exporten dichas series en csv al directorio C:\MiDirectorio:
+
+<pre lang="markdown">python extractor.py --accion Apple --api yfinance --fechasInicio 23-12-2015 23-12-2017 --fechasFinal 23-12-2016 23-12-2018 --rutaCSV C:\MiDirectorio --infoExtra No</pre>
+
+Si además queremos que se genere en un json información adicional de Apple, guardándose también en C:\MiDirectorio:
+
+<pre lang="markdown">python extractor.py --accion Apple --api yfinance --fechasInicio 23-12-2015 23-12-2017 --fechasFinal 23-12-2016 23-12-2018 --rutaCSV C:\MiDirectorio --infoExtra Sí --rutaJSON C:\MiDirectorio</pre>
+
+Si ahora en vez de una empresa lo que queremos es consultar la serie de precios de un índice, por ejemplo S&P 500 (importante, en el caso de nombres con el carácter & o con espacios, pasarlos entrecomillados), para las mismas fechas, api y rutas:
+
+<pre lang="markdown">python extractor.py --indice "S&P 500" --api yfinance --fechasInicio 23-12-2015 23-12-2017 --fechasFinal 23-12-2016 23-12-2018 --rutaCSV C:\MiDirectorio --infoExtra No</pre>
+
+Sigamos con la creación de una cartera. Su modo de uso es el siguiente:
+
+<pre lang="markdown"> python cartera.py --rutaCSV [ruta] --archivosSeries [archivoSerie1] ... [archivoSerieN] --pesos [peso1] ... [pesoN] --nombreCartera [nombre] --informe [Respuesta] </pre>
+
+Si queremos construir una cartera y visualizar algunas gráficas asociadas, a partir de las series temporales de Apple y S&P 500 obtenidas para el período 23/12/2015-23/12/2016, con pesos 0.6 y 0.4 respectivamente, llamando a la cartera Cartera1, y generando un informe de la cartera en un .md (dicho informe se genera en el mismo directorio de cartera.py, no en el de la ruta de los CSV):
+
+<pre lang="markdown"> python cartera.py --rutaCSV C:\MiDirectorio --archivosSeries yfinance_Apple_23-12-2015_23-12-2016.csv "yfinance_S&P 500_23-12-2015_23-12-2016.csv" --pesos 0.6 0.4 --nombreCartera Cartera1 --informe Sí</pre>
 
