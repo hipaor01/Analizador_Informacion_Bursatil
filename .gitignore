@@ -1,3 +1,5 @@
 csvs/
 jsons/
 src/*.md
+*.csv
+*.json
