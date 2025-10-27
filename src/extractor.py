@@ -2,10 +2,18 @@ import argparse
 import sys
 import yfinance as yf
 import pandas as pd
+import os
 from alpha_vantage.timeseries import TimeSeries
 from alpha_vantage.fundamentaldata import FundamentalData
 from datetime import datetime
 from data_utils import save_csv, save_json, exists_route, normalizar_texto
+from dotenv import load_dotenv
+
+#Cargamos las variables de entorno guardadas en el .env
+load_dotenv()
+#En este caso solo tenemos la clave del API de alpha_vantage
+claveAPI = os.getenv("API_KEY")
+
 
 #Diccionario con acciones disponibles y sus abreviaturas para cada API
 acciones = {"Apple" : "AAPL",
@@ -182,9 +190,6 @@ if __name__ == "__main__":
             infoExtra["Dividend Yield"] = info['dividendYield']
             nombreJSON = nombreAPI + ".json"
     elif args.api == "alpha_vantage":
-        #Clave para el acceso gratuito al API
-        claveAPI = "80BMX4YY0TE7HF33"
-        #claveAPI = "J7AZSOVVYTC2GZO5"
         ts = TimeSeries(key=claveAPI, output_format='pandas')
         #En el caso de que se haya escogido un índice, habrá que quedarse con el segundo elemento de la lista asociada a la clave en cuestión
         activo = diccionario[ticker] if args.accion else diccionario[ticker][1]
