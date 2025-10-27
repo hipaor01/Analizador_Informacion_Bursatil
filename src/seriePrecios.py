@@ -5,7 +5,10 @@ from pathlib import Path
 from data_utils import get_log_returns
 from scipy.stats import skew,kurtosis
 from datetime import datetime
+from dataclasses import dataclass
+from typing import List
 
+@dataclass
 class SeriePrecios:
     #El parámetro archivoCSV va a contener un fichero CSV generado por extractor.py
     #Los atributos van a ser:
@@ -25,6 +28,22 @@ class SeriePrecios:
     #Monte Carlo)
     #Asimetria: Simetría de los retornos logarítmicos respecto de su media
     #Curtosis: Nivel de aplanamiento de los retornos logarítmicos respecto a una distribución normal
+
+    nombreActivo: str
+    dates: np.array
+    longitud: int
+    closePrices: np.array
+    highPrices: np.array
+    lowPrices: np.array
+    openPrices: np.array
+    volume: np.array
+    logReturns: np.array
+    media: float
+    desviacionTipica: float
+    cuasiDesviacionTipica: float
+    asimetria: float
+    curtosis: float
+
     def __init__(self, archivoCSV):
         try:
             data = pd.read_csv(archivoCSV)
@@ -111,6 +130,48 @@ class SeriePrecios:
     #Obtención de la curtosis de los retornos logarítmicos
     def obtenerCurtosis(self):
         return self.curtosis
+    
+    #Hay que declarar esté metodo porque va a ser llamado por el método homónimo en la clase Cartera, al tener como atributo una lista de instancias
+    def to_dict(self):
+        return {
+            "nombreActivo": self.nombreActivo,
+            "dates": self.dates.tolist(),
+            "longitud": self.longitud,
+            "closePrices": self.closePrices.tolist(),
+            "highPrices": self.highPrices.tolist(),
+            "lowPrices": self.lowPrices.tolist(),
+            "openPrices": self.openPrices.tolist(),
+            "volume": self.volume.tolist(),
+            "logReturns": self.logReturns.tolist(),
+            "media": self.media,
+            "desviacionTipica": self.desviacionTipica,
+            "cuasiDesviacionTipica": self.cuasiDesviacionTipica,
+            "asimetria": self.asimetria,
+            "curtosis": self.curtosis
+        }
+    
+    @classmethod
+    #Hay que declarar este método de clase porque va a ser llamado por el método homónimo en la clase Cartera, al tener como atributo una lista de instancias
+    def from_dict(serie, datos):
+        #No podemos llamar al constructor por defecto que crea dataclass porque ya lo hemos sobreescrito
+        obj = serie.__new__(serie)
+        
+        obj.nombreActivo = datos["nombreActivo"]
+        obj.dates = np.array(datos["dates"])
+        obj.longitud = datos["longitud"]
+        obj.closePrices = np.array(datos["closePrices"])
+        obj.highPrices = np.array(datos["highPrices"])
+        obj.lowPrices = np.array(datos["lowPrices"])
+        obj.openPrices = np.array(datos["openPrices"])
+        obj.volume = np.array(datos["volume"])
+        obj.logReturns = np.array(datos["logReturns"])
+        obj.media = datos["media"]
+        obj.desviacionTipica = datos["desviacionTipica"]
+        obj.cuasiDesviacionTipica = datos["cuasiDesviacionTipica"]
+        obj.asimetria = datos["asimetria"]
+        obj.curtosis = datos["curtosis"]
+
+        return obj
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

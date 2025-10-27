@@ -1,13 +1,12 @@
 import argparse
 import sys
-from data_utils import exists_route, normalizar_texto
+import json
+from data_utils import exists_route, normalizar_texto, load_json
 from cartera import Cartera
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--rutaCSV', type=str, required=True, help='Ruta de almacenamiento de los CSVs')
-    parser.add_argument('--archivosSeries', nargs='+', type=str, required=True, help='CSVs conteniendo series de precios')
-    parser.add_argument('--pesos', nargs='+', type=float, required=True, help='Pesos de cada serie de precios')
     parser.add_argument('--medias', nargs='+', type=float, required=False, help='Medias de cada una de las series que se quiere imponer')
     parser.add_argument('--desviacionesTipicas', nargs='+', type=float, required=False, help='Desviaciones típicas de cada una de las series que se quiere imponer')
     parser.add_argument('--numSimulaciones', type=int, required=True, help='Número de simulaciones que de desea realizar')
@@ -17,19 +16,21 @@ if __name__ == "__main__":
     parser.add_argument('--nombreCartera', type=str, required=True, help='Nombre que le queremos asignar a la cartera')
     args = parser.parse_args()
 
-    #La ruta desde la que vamos a extraer y exportar los CSVs debe existir
-    if not exists_route(args.rutaCSV):
-        print("La ruta de los CSV introducida no existe")
+    #Recuperamos una instancia de la clase Cartera creada anteriormente desde un json, usando el nombre de la cartera pasado por el usuario
+    json_str = load_json(args.nombreCartera + ".json")
+    if json_str == None:
+        print("Ha habido un error al cargar la cartera solicitada")
         sys.exit(1)
 
-    #Creamos la cartera
-    cartera = Cartera(args.archivosSeries, args.rutaCSV, args.pesos, args.nombreCartera)
+    data = json.loads(json_str)
+    cartera = Cartera.from_dict(data)
+    numActivos = cartera.obtenerNumActivos()
 
     #Si el usuario no pasa medias como parámetro, lo que haremos será cojer las medias de los retornos de cada una de las series temporales, que son estimadores
     #insesgados de la media de la distribución que siguen
     medias = []
     if not args.medias:
-        medias = [cartera.obtenerActivo(i).obtenerMedia() for i in range(len(args.pesos))]
+        medias = [cartera.obtenerActivo(i).obtenerMedia() for i in range(numActivos)]
     else:
         medias = args.medias
 
@@ -37,7 +38,7 @@ if __name__ == "__main__":
     #temporales, que son estimadores insesgados de la desviación típica de la distribución que siguen
     desviacionesTipicas = []
     if not args.desviacionesTipicas:
-        desviacionesTipicas = [cartera.obtenerActivo(i).obtenerCuasiDesviacionTipica() for i in range(len(args.pesos))]
+        desviacionesTipicas = [cartera.obtenerActivo(i).obtenerCuasiDesviacionTipica() for i in range(numActivos)]
     else:
         desviacionesTipicas = args.desviacionesTipicas
 

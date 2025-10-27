@@ -37,3 +37,18 @@ Si queremos construir una cartera y visualizar algunas gráficas asociadas, a pa
 
 <pre lang="markdown"> python cartera.py --rutaCSV C:\MiDirectorio --archivosSeries yfinance_Apple_23-12-2015_23-12-2016.csv "yfinance_S&P 500_23-12-2015_23-12-2016.csv" --pesos 0.6 0.4 --nombreCartera Cartera1 --informe Sí</pre>
 
+Finalmente, veamos la simulación de Monte Carlo. Su modo de uso el siguiente:
+
+<pre lang="markdown"> python monteCarlo.py --rutaCSV [ruta] --medias [media1] ... [mediaN] --desviacionesTipicas [desviacionTipica1] ... [desviacionTipicaN] --numSimulaciones [numSimulaciones] --numDias [numDias] --valorInicial [valorInicial] --carteraCompleta [carteraCompleta] --nombreCartera [nombreCartera] </pre>
+
+Si queremos realizar 2 simulaciones de Cartera1 completa, durante 10 días, con valor inicial 1000 y guardar los CSV generados en C:\MiDirectorio:
+
+<pre lang="markdown"> python monteCarlo.py --rutaCSV C:\MiDirectorio --numSimulaciones 2 --numDias 10 --valorInicial 1000 --carteraCompleta Sí --nombreCartera Cartera1 </pre>
+
+Si ahora en vez de simular la cartera al completo queremos simular cada una de sus componentes por separado:
+
+<pre lang="markdown"> python monteCarlo.py --rutaCSV C:\MiDirectorio --numSimulaciones 2 --numDias 10 --valorInicial 1000 --carteraCompleta No --nombreCartera Cartera1 </pre>
+
+Si queremos imponer determinadas medias y desviaciones típicas para los retornos de cada uno de los activos, por ejemplo medias 0.1 0.2 y desviaciones típicas 0.07 y 0.05:
+
+<pre lang="markdown"> python monteCarlo.py --rutaCSV C:\MiDirectorio --medias 0.1 0.2 --desviacionesTipicas 0.07 0.05 --numSimulaciones 2 --numDias 10 --valorInicial 1000 --carteraCompleta Sí --nombreCartera Cartera1 </pre>

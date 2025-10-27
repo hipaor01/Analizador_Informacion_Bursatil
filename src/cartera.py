@@ -6,8 +6,12 @@ import matplotlib.ticker as ticker
 import textwrap
 import sys
 import seaborn as sns
+import json
+import os
 from seriePrecios import SeriePrecios
-from data_utils import build_corr_matrix, get_simulacion_valores, save_csv, normalizar_texto
+from data_utils import build_corr_matrix, get_simulacion_valores, save_csv, save_json, normalizar_texto
+from dataclasses import dataclass, asdict
+from typing import List
 
 #Función para visualizar en un gráfico las simulaciones realizadas para un valor o cartera
 def grafica_simulaciones(data, titulo):
@@ -66,7 +70,7 @@ def mapa_calor(matriz_corr, etiquetas, titulo):
 
     return True
 
-
+@dataclass
 class Cartera:
     #El parámetro archivosCSV va a contener una lista de ficheros CSV generados por extractor.py, y rutaCSV el directorio donde se encuentran todos ellos
     #Los atributos van a ser:
@@ -75,7 +79,15 @@ class Cartera:
     #Pesos: Lista de pesos de cada uno de los activos en la cartera
     #ReturnsCartera: Serie con los retornos logarítmicos de todos los activos de la cartera para el período considerado
     #MatrizCorrelacion: Matriz de correlación de los activos de la cartera
-    #NombreCartera: Nombre con el que queremos identificar a la cartera    
+    #NombreCartera: Nombre con el que queremos identificar a la cartera
+
+    activos: List[SeriePrecios]
+    numActivos: int
+    pesos: np.array
+    returnsCartera: pd.DataFrame
+    matrizCorrelacion: np.array
+    nombreCartera: str
+
     def __init__(self, archivosCSV, rutaCSV, pesos, nombreCartera):
         try:
             #Debemos comprobar en primer lugar que los archivos CSV compartidos son de activos distintos
@@ -107,11 +119,10 @@ class Cartera:
                 return
             
             #Los pesos deben sumar 1
-            pesosArray = np.array(pesos)
-            if np.sum(pesosArray) != 1:
+            self.pesos = np.array(pesos)
+            if np.sum(self.pesos) != 1:
                 print("Los pesos deben sumar 1")
                 return
-            self.pesos = pesosArray
             
             #Juntamos las series de retornos de cada uno de los activos en un único dataframe
             self.returnsCartera = pd.concat([pd.Series(self.activos[i].obtenerReturns()) for i in range(self.numActivos)], axis=1)
@@ -129,6 +140,10 @@ class Cartera:
             return None
         
         return self.activos[posicion]
+    
+    #Devuelve el número de activos que componen la cartera
+    def obtenerNumActivos(self):
+        return self.numActivos
 
     #Simulación de un proceso de Monte Carlo para los valores de una cartera
     #Medias: Lista de medias de retornos logarítmicos para cada uno de los activos que componen la cartera
@@ -240,6 +255,34 @@ class Cartera:
         if not mapa_calor(self.matrizCorrelacion, nombresActivos, "Correlaciones " + self.nombreCartera):
             print("Error al visualizar mapa de calor de las correlaciones entre los activos de la cartera")
             return
+        
+    #Este método nos va a ayudar a poder serializar en un json campos de tipo dataframe
+    def to_dict(self):
+        return {
+            "activos": [activo.to_dict() for activo in self.activos],
+            "numActivos": self.numActivos,
+            "pesos": self.pesos.tolist(),
+            "returnsCartera": self.returnsCartera.to_dict(orient="records"),
+            "matrizCorrelacion": self.matrizCorrelacion.tolist(),
+            "nombreCartera": self.nombreCartera
+        }
+    
+    @classmethod
+    #Este método de clase nos va a ayudar a desearilizar el json generado por la función anterior. Se declara de clase porque cuando lo llamamos aun no 
+    #hay ninguna instancia de la clase creada
+    def from_dict(cartera, datos):
+        #No podemos llamar al constructor por defecto que crea dataclass porque ya lo hemos sobreescrito
+        obj = cartera.__new__(cartera)
+
+        obj.activos = [SeriePrecios.from_dict(activo) for activo in datos["activos"]]
+        obj.numActivos = datos["numActivos"]
+        obj.pesos = np.array(datos["pesos"])
+        obj.returnsCartera = pd.DataFrame(datos["returnsCartera"])
+        obj.matrizCorrelacion = np.array(datos["matrizCorrelacion"])
+        obj.nombreCartera = datos["nombreCartera"]
+
+        return obj
+        
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -251,6 +294,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     cartera = Cartera(args.archivosSeries, args.rutaCSV, args.pesos, args.nombreCartera)
+    #Guardamos en json los datos sobre esta instancia de la clase Cartera, para luego recuperarla en el programa de simulaciones de Monte Carlo
+    json_str = json.dumps(cartera.to_dict())
+    save_json(args.nombreCartera + ".json", json_str)
+
     
     #Las respuestas posibles al parámetro informe son si o no. Normalizamos el texto para permitir tildes y mayúsculas
     informeNormalizado = normalizar_texto(args.informe)

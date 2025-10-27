@@ -1,5 +1,6 @@
 import numpy as np
 import unicodedata
+import json
 from pathlib import Path
 
 #Función para obtener rendimientos logarítmicos dada una serie de precios
@@ -23,6 +24,24 @@ def save_csv(data, nombre, indiceColumna):
         print("El archivo " + nombre + " fue creado con éxito")
     except Exception as e:
         print("Error al crear el archivo " + nombre)
+
+#Función para almacenar un json en la ruta especificada
+def save_json(ruta, contenido):
+    try:
+        with open(ruta, "w", encoding="utf-8") as f:
+            json.dump(contenido, f, ensure_ascii=False, indent=4)
+            print("El archivo " + ruta + " fue creado con éxito")
+    except Exception as e:
+        print("Error al crear el archivo " + ruta)
+
+#Función para leer un json desde una ruta especificada
+def load_json(ruta):
+    try:
+        with open(ruta, "r", encoding="utf-8") as f:
+            contenido = json.load(f)
+            return contenido
+    except Exception as e:
+        return None
 
 #Función para comprobar si una ruta existe en nuestro equipo
 def exists_route(ruta):

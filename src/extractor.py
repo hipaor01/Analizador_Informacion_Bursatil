@@ -2,11 +2,10 @@ import argparse
 import sys
 import yfinance as yf
 import pandas as pd
-import json
 from alpha_vantage.timeseries import TimeSeries
 from alpha_vantage.fundamentaldata import FundamentalData
 from datetime import datetime
-from data_utils import save_csv, exists_route, normalizar_texto
+from data_utils import save_csv, save_json, exists_route, normalizar_texto
 
 #Diccionario con acciones disponibles y sus abreviaturas para cada API
 acciones = {"Apple" : "AAPL",
@@ -228,12 +227,7 @@ if __name__ == "__main__":
 
     if infoExtraNormalizada == "si":
         #Guardamos en un .json el contenido de infoExtra
-        try:
-            with open(args.rutaJSON + "\\" + nombreJSON, "w", encoding="utf-8") as f:
-                json.dump(infoExtra, f, ensure_ascii=False, indent=4)
-            print("El archivo " + nombreJSON + " fue creado con éxito")
-        except Exception as e:
-            print("Error al crear el archivo " + nombreJSON)
+        save_json(args.rutaJSON + "\\" + nombreJSON, infoExtra)
         
 
 
