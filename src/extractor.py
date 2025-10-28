@@ -5,7 +5,7 @@ import pandas as pd
 import os
 from alpha_vantage.timeseries import TimeSeries
 from alpha_vantage.fundamentaldata import FundamentalData
-from datetime import datetime
+from datetime import datetime, timedelta
 from data_utils import save_csv, save_json, exists_route, normalizar_texto
 from dotenv import load_dotenv
 
@@ -142,8 +142,9 @@ if __name__ == "__main__":
     
 
     #Convertirmos las fechas de inicio y de fin del formato dd-mm-yyyy a yyyy-mm-dd
-    fIniciosFormato = [fecha.strftime("%Y-%m-%d") for fecha in fInicioConvertidas]
-    fFinalesFormato = [fecha.strftime("%Y-%m-%d") for fecha in fFinalConvertidas]
+    formatoFechas = "%Y-%m-%d"
+    fIniciosFormato = [fecha.strftime(formatoFechas) for fecha in fInicioConvertidas]
+    fFinalesFormato = [fecha.strftime(formatoFechas) for fecha in fFinalConvertidas]
 
     #Trabajamos con el diccionario de acciones o el de índices en función de lo demandado por el usuario
     ticker = args.accion if args.accion else args.indice
@@ -171,6 +172,8 @@ if __name__ == "__main__":
         activo = diccionario[ticker] if args.accion else diccionario[ticker][0]
         nombreAPI = "yfinance_" + ticker
         for i in range(len(fIniciosFormato)):
+            #Si el usuario ha pedido trabajar con yfinance, añadimos 1 día a la fecha porque en la llamada al api se excluye la fecha final pasada
+            fFinalesFormato[i] = (datetime.strptime(fFinalesFormato[i], formatoFechas) + timedelta(days=1)).strftime(formatoFechas)
             data = yf.download(activo, start=fIniciosFormato[i], end=fFinalesFormato[i])
             data = data[columnasPrecios]
             #Como solo consultamos una empresa/índice, nos quedamos solamente con el nombre del tipo de precio en cada columna
