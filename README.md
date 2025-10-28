@@ -1,5 +1,9 @@
 # Tarea_Bloque1_MIAX
 Resolución de la tarea del bloque 1 del máster MIAX. Su contenido es el siguiente:
+
+# .env.example
+Ejemplo de fichero de variables de entorno .env, donde para el correcto funcionamiento del proyecto sería solamente necesario asignar valor a la variable $API\_KEY$, que es la clave para conectarse al API de Alpha Vantage. Se puede obtener una de forma gratuita en https://www.alphavantage.co/support/#api-key.
+
 # src 
 Contiene todos los archivos .py:
 - cartera.py: Este archivo contiene la definición de la clase Cartera, que representa una cartera compuesta por acciones de empresas e/o índices. Contiene métodos para realización de simulaciones de Monte Carlo, generación de informes y de gráficas.
