@@ -5,3 +5,4 @@ src/*.md
 *.json
 .env
 !.env.example
+__pycache__/
