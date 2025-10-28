@@ -3,3 +3,4 @@ jsons/
 src/*.md
 *.csv
 *.json
+*.env
