@@ -3,6 +3,8 @@ import sys
 import yfinance as yf
 import pandas as pd
 import os
+import requests
+import numpy as np
 from alpha_vantage.timeseries import TimeSeries
 from alpha_vantage.fundamentaldata import FundamentalData
 from datetime import datetime, timedelta
@@ -29,14 +31,15 @@ acciones = {"Apple" : "AAPL",
             "ExxonMobil": "XOM", 
             "Johnson & Johnson": "JNJ",
             "Pfizer": "PFE"}
-#Diccionario con índices disponibles y sus abreviaturas para cada API, siendo la prmera la de yfinance y la segunda la de alpha_vantage (en este caso es la abreviatura
-#de un ETF que replica al índice, no del índice en si mismo)
-indices = {"S&P 500": ["^GSPC","SPY"], 
-           "Nasdaq": ["^IXIC","QQQ"], 
-           "Dow Jones": ["^DJI", "DIA"], 
-           "Euro Stoxx": ["^STOXX50E", "FEZ"],
-           "Nikkei": ["^N225", "EWJ"], 
-           "IBEX 35": ["^IBEX", "EWP"]}
+#Diccionario con índices disponibles y sus abreviaturas para cada API, siendo la primera la de yfinance y la segunda la de alpha_vantage (en este caso es la abreviatura
+#de un ETF que replica al índice, no del índice en si mismo). También añadimos la divisa de cada índice, para el caso de yfinance, porque con alpha_vantage son todos
+#ETFs que cotizan en dólares americanos
+indices = {"S&P 500": ["^GSPC","SPY","USD"], 
+           "Nasdaq": ["^IXIC","QQQ","USD"], 
+           "Dow Jones": ["^DJI","DIA","USD"], 
+           "Euro Stoxx": ["^STOXX50E","FEZ","EUR"],
+           "Nikkei": ["^N225","EWJ","JPY"], 
+           "IBEX 35": ["^IBEX","EWP","EUR"]}
 #Lista de apis disponibles
 apis = ["yfinance", "alpha_vantage"]
 
@@ -123,11 +126,11 @@ if __name__ == "__main__":
     if infoExtraNormalizada != "si" and infoExtraNormalizada != "no":
         print("La respuesta a si quiere información extra acerca de la empresa debe ser Sí o No")
         sys.exit(1)
-    else:
+    #else:
         #Si lo seleccionado es un índice, no vamos a mostrar esta información extra
-        if args.indice and infoExtraNormalizada == "si":
-            print("No está disponible la información extra para un índice")
-            sys.exit(1)
+        #if args.indice and infoExtraNormalizada == "si":
+            #print("No está disponible la información extra para un índice")
+            #sys.exit(1)
 
     #Si se ha pedido que se muestre información extra, debe pasarse también la ruta donde almacenar los JSONs generados
     if infoExtraNormalizada == "si" and not args.rutaJSON:
@@ -163,7 +166,8 @@ if __name__ == "__main__":
                 "Industry": "",
                 "Country": "",
                 "Market Capitalization": "",
-                "Dividend Yield": ""
+                "Dividend Yield": "",
+                "Currency": ""
                 }
     nombreJSON = ""
 
@@ -178,19 +182,64 @@ if __name__ == "__main__":
             data = data[columnasPrecios]
             #Como solo consultamos una empresa/índice, nos quedamos solamente con el nombre del tipo de precio en cada columna
             data.columns = data.columns.get_level_values(0)
+
+            #Si estamos procesando un índice y su divisa no es USD, realizamos la conversión consultando el tipo de cambio para cada fecha
+            #Nos quedamos con el valor de cierre para cada fecha
+            if args.indice:
+                divisa = diccionario[ticker][2]
+                if divisa != "USD":
+                    tipoCambio = ""
+                    if divisa == "EUR":
+                        tipoCambio = "EURUSD=X"
+                    elif divisa == "JPY":
+                        tipoCambio = "JPYUSD=X"
+                    dataTipoCambio = yf.download(tipoCambio, start=fIniciosFormato[i], end=fFinalesFormato[i])
+                    #Si una fecha está en el dataframe de tipos de cambio pero no en la serie de precios, eliminamos dicha entrada
+                    for fecha in dataTipoCambio.index:
+                        if not(fecha in data.index):
+                            dataTipoCambio = dataTipoCambio.drop(fecha)
+
+                    listaCloseCambio = dataTipoCambio['Close'].to_numpy()
+        
+                    #Multiplicamos en todas las colunmnas menos en la última, que es la del volumen. En el caso de que tengamos euros, multiplicamos
+                    #y si tenemos yenes, dividimos
+                    data = pd.concat([data.iloc[:,:-1] * listaCloseCambio, data.iloc[:,-1]], axis=1)
+            
             #Cambiamos la precisión a 2 decimales como en el caso de alpha_vantage
             data = data.round({'Close': 2, 'High': 2, 'Low': 2, 'Open': 2})
+
             dataList.append(data)
             nombresCSV.append(nombreAPI + "_" + args.fechasInicio[i] + "_" + args.fechasFinal[i] + ".csv")
 
         if infoExtraNormalizada == "si":
             info = yf.Ticker(activo).info
             infoExtra["Name"] = info['longName']
-            infoExtra["Sector"] = info['sector']
-            infoExtra["Industry"] = info['industry']
-            infoExtra["Country"] = info['country']
-            infoExtra["Market Capitalization"] = info['marketCap']
-            infoExtra["Dividend Yield"] = info['dividendYield']
+            #Si no encontramos el nombre de un campo (porque es un índice por ejemplo), manejamos la excepción
+            try:
+                infoExtra["Sector"] = info['sector']
+            except KeyError as k:
+                infoExtra["Sector"] = "No hay dato"
+            try:
+                infoExtra["Industry"] = info['industry']
+            except KeyError as k:
+                infoExtra["Industry"] = "No hay dato"
+            
+            try:
+                infoExtra["Country"] = info['country']
+            except KeyError as k:
+                infoExtra["Country"] = "No hay dato"
+
+            try:
+                infoExtra["Market Capitalization"] = info['marketCap']
+            except KeyError as k:
+                infoExtra["Market Capitalization"] = "No hay dato"
+
+            try:
+                infoExtra["Dividend Yield"] = info['dividendYield']
+            except KeyError as k:
+                infoExtra["Dividend Yield"] = "No hay dato"
+
+            infoExtra["Currency"] = info['currency']
             nombreJSON = nombreAPI + ".json"
     elif args.api == "alpha_vantage":
         ts = TimeSeries(key=claveAPI, output_format='pandas')
@@ -214,17 +263,37 @@ if __name__ == "__main__":
             nombresCSV.append(nombreAPI + "_" + args.fechasInicio[i] + "_" + args.fechasFinal[i] + ".csv")
 
         if infoExtraNormalizada == "si":
-            fd = FundamentalData(key=claveAPI, output_format='pandas')
-            overview, meta = fd.get_company_overview(activo)
-            #Como lo que nos devuelve overview para cada campo es un dataframe de una sola columna, nos quedamos con su contenido en la primera fila
-            infoExtra["Name"] = overview['Name'].iloc[0]
-            infoExtra["Sector"] = overview['Sector'].iloc[0]
-            infoExtra["Industry"] = overview['Industry'].iloc[0]
-            infoExtra["Country"] = overview['Country'].iloc[0]
-            #Convertimos a entero al igual que es devuelto por yfinance
-            infoExtra["Market Capitalization"] = int(overview['MarketCapitalization'].iloc[0])
-            #Convertimos a float al igual que es devuelto por yfinance
-            infoExtra["Dividend Yield"] = float(overview['DividendYield'].iloc[0])
+            if args.accion :
+                fd = FundamentalData(key=claveAPI, output_format='pandas')
+                overview, meta = fd.get_company_overview(activo)
+                #Como lo que nos devuelve overview para cada campo es un dataframe de una sola columna, nos quedamos con su contenido en la primera fila
+                infoExtra["Name"] = overview['Name'].iloc[0]
+                infoExtra["Sector"] = overview['Sector'].iloc[0]
+                infoExtra["Industry"] = overview['Industry'].iloc[0]
+                infoExtra["Country"] = overview['Country'].iloc[0]
+                #Convertimos a entero al igual que es devuelto por yfinance
+                infoExtra["Market Capitalization"] = int(overview['MarketCapitalization'].iloc[0])
+                #Convertimos a float al igual que es devuelto por yfinance
+                infoExtra["Dividend Yield"] = float(overview['DividendYield'].iloc[0])
+                infoExtra["Currency"] = overview['Currency'].iloc[0]
+            else:
+                #Si se ha pasado un índice (que en el caso de alpha_vantage corresponde con un ETF suyo), entonces tenemos que hacer un GET al siguiente endpoint
+                url = f"https://www.alphavantage.co/query?function=SYMBOL_SEARCH&keywords={activo}&apikey={claveAPI}"
+                respuesta = requests.get(url)
+                datos = respuesta.json()
+                
+                for match in datos.get("bestMatches", []):
+                    #De entre todas las coincidencias, nos quedamos con la que coincida el símbolo con el de nuestro ETF
+                    if match.get("1. symbol", "").upper() == activo:
+                        infoExtra["Name"] = match.get('2. name')
+                        infoExtra["Country"] = match.get('4. region')
+                        infoExtra["Currency"] = match.get('8. currency')
+                        #El resto de campos los devolvemos vacíos
+                        infoExtra["Sector"] = "No hay dato"
+                        infoExtra["Industry"] = "No hay dato"
+                        infoExtra["Market Capitalization"] = "No hay dato"
+                        infoExtra["Dividend Yield"] = "No hay dato"
+
             nombreJSON = nombreAPI + ".json"
 
     #Exportamos a csv las series temporales obtenidas. El parámetro indiceColumna está a True para que se incluya a la fecha como a una columna más
