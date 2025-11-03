@@ -76,6 +76,14 @@ class SeriePrecios:
     #Obtención de la última fecha en la serie temporal, en formato Día/Mes/Año
     def obtenerUltimaFecha(self):
         return datetime.strptime(self.dates[-1], "%Y-%m-%d")
+    
+    #Obtención de las fechas
+    def obtenerFechas(self):
+        return self.dates
+    
+    #Obtención de los precios de cierre
+    def obtenerClosePrices(self):
+        return self.closePrices
 
     #Obtención de los retornos logarítmicos
     def obtenerReturns(self):
@@ -114,6 +122,31 @@ class SeriePrecios:
 
         mediaMovil = np.convolve(self.closePrices, np.ones(n)/n, mode='valid')
         return mediaMovil
+    
+    #Cálculo y obtención del RSI simple de los precios de cierre para períodos de 14 días
+    def obtenerRSI(self):
+        #Debemos asegurarnos que haya al menos 15 entradas de precios, para que nos queden 14 diferencias
+        if self.longitud < 15:
+            print("Debe haber al menos 15 entradas de precios")
+            return np.array([])
+
+        cambiosDiarios = np.diff(self.closePrices)
+        #Cuando haya una posición con pérdida, la sustituimos por 0
+        gananciasDiarias = [cambio if cambio > 0 else 0 for cambio in cambiosDiarios]
+        #Cuando haya una posición con ganancia, la sustituimos por 0. Como las pérdidas tienen todas signo negativo, se lo cambiamos
+        perdidasDiarias = [-cambio if cambio <= 0 else 0 for cambio in cambiosDiarios]
+        
+        matrizFiltro = np.ones(14)/14
+        mediaGanancias = np.convolve(gananciasDiarias, matrizFiltro, mode='valid')
+        mediaPerdidas = np.convolve(perdidasDiarias, matrizFiltro, mode='valid')
+
+        #Calculamos los RS (Relative Strength)
+        rs = mediaGanancias/mediaPerdidas
+        #Finalmente calculamos los RSI
+        rsi = 100 - 100/(1 + rs)
+        
+        return rsi
+
     
     #Cálculo de la asimetría de los retornos logarítmicos
     def calcularAsimetria(self):
@@ -179,4 +212,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     serie = SeriePrecios(args.archivoSerie)
-    

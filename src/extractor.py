@@ -201,8 +201,7 @@ if __name__ == "__main__":
 
                     listaCloseCambio = dataTipoCambio['Close'].to_numpy()
         
-                    #Multiplicamos en todas las colunmnas menos en la última, que es la del volumen. En el caso de que tengamos euros, multiplicamos
-                    #y si tenemos yenes, dividimos
+                    #Multiplicamos en todas las colunmnas menos en la última, que es la del volumen
                     data = pd.concat([data.iloc[:,:-1] * listaCloseCambio, data.iloc[:,-1]], axis=1)
             
             #Cambiamos la precisión a 2 decimales como en el caso de alpha_vantage
@@ -247,6 +246,7 @@ if __name__ == "__main__":
         activo = diccionario[ticker] if args.accion else diccionario[ticker][1]
         ordenColumnas = ['4. close', '2. high', '3. low', '1. open', '5. volume']
         data, _ = ts.get_daily(symbol=activo, outputsize = 'full')
+
         #Imponemos el mismo orden que hay en lo devuelto por yfinance
         data = data[ordenColumnas]
         #Imponemos los mismos nombres de columnas que los devueltos en yfinance

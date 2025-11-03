@@ -7,7 +7,7 @@ import textwrap
 import sys
 import seaborn as sns
 import json
-import os
+import datetime
 from seriePrecios import SeriePrecios
 from data_utils import build_corr_matrix, get_simulacion_valores, save_csv, save_json, normalizar_texto
 from dataclasses import dataclass, asdict
@@ -45,13 +45,79 @@ def grafica_sectores(etiquetas, tamanios, titulo):
 
     fig, ax = plt.subplots(figsize=(5,5))
     #Indicamos que se muestre el porcentaje de cada sector, que empiece en la parte superior y que tenga sombra
-    ax.pie(tamanios, labels=etiquetas, explode=resalte, autopct="%1.1f%%", startangle=90, shadow=True)
+    ax.pie(tamanios_ordenados, labels=etiquetas_ordenados, explode=resalte, autopct="%1.1f%%", startangle=90, shadow=True)
     ax.set_title(titulo)
     #Queremos que se visualize un círculo perfecto
     ax.axis("equal")
     plt.show()
 
     return True
+
+#Función para visualizar la media móvil de una cartera con una ventana de n días
+def grafica_media_movil(n,cartera):
+    activos = cartera.obtenerActivos()
+    pesos = cartera.obtenerPesos()
+    fechas = cartera.obtenerFechas()
+
+    #Comprobamos que n es mayor que 0 y menor o igual que el número de fechas
+    if n <= 0 or n > fechas.shape[0]:
+        print("El tamaño de la ventana debe ser mayor que 0 y menor o igual que el número de entradas de la serie")
+        return False
+
+    #Como estamos usando media móvil simple y las series temporales de los activos están alineadas temporalmente, podemos calcular
+    #la media móvil de la cartera como la suma ponderada de las medias móviles de sus activos.
+    mediasMoviles = np.vstack([activo.obtenerMediaMovilSimple(n) for activo in activos])
+    mediasMovilesPonderadas = np.sum(mediasMoviles*pesos[:,np.newaxis],axis=0)
+    #Para ver la tendencia de la cartera, visualizamos la media móvil junto con los precios de cierre
+    preciosCierre = np.vstack([activo.obtenerClosePrices() for activo in activos])
+    preciosCierrePonderados = np.sum(preciosCierre*pesos[:,np.newaxis],axis=0)
+
+
+    plt.figure(figsize=(10,6))
+    plt.plot(fechas,preciosCierrePonderados, label="Valor cartera", color='steelblue')
+    #Como es media móvil de n días, no tenemos entrada de fecha hasta el día n del período
+    plt.plot(fechas[n-1:],mediasMovilesPonderadas, label="Media móvil " +  str(n) + " días", color='orange', linewidth=2)
+    plt.xlabel("Fecha")
+    plt.ylabel("Valor ponderado")
+    plt.title("Evolución de " + cartera.obtenerNombreCartera() + " y su media móvil (" + str(n) + " días)")
+    plt.legend()
+    plt.show()
+
+    return True
+
+#Función para visualizar el RSI de las componentes de una cartera, con una ventana de 14 días
+def grafica_RSI_activos(cartera):
+        fechas = cartera.obtenerFechas()
+
+        #Comprobamos que el número de fechas es mayor o igual que 15
+        if fechas.shape[0] < 15:
+            print("El número de entradas en las series temporales de los activos debe ser mayor o igual que 15")
+            return False
+    
+        for activo in cartera.activos:
+            fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10,7), sharex=True, gridspec_kw={'height_ratios':[3,1]})
+
+            ax1.plot(fechas, activo.obtenerClosePrices(), label="Precio", color="steelblue")
+            ax1.set_title("Precio y RSI (14 días) " + activo.obtenerNombreActivo())
+            ax1.set_ylabel("Precio (USD)")
+            ax1.legend(loc="upper left")
+
+            #Como hemos calculado el RSI con ventana de 14 días, no tenemos entrada de fecha hasta el día 15 del período estudiado
+            ax2.plot(fechas[14:],activo.obtenerRSI(), color='darkorange', label='RSI (14 días)')
+            ax2.axhline(70, color='red', linestyle='--', linewidth=1)
+            ax2.axhline(30, color='green', linestyle='--', linewidth=1)
+            ax2.fill_between(fechas[14:], 70, 100, color='red', alpha=0.1)
+            ax2.fill_between(fechas[14:], 0, 30, color='green', alpha=0.1)
+            ax2.set_ylabel("RSI")
+            ax2.set_xlabel("Fecha")
+            ax2.set_ylim(0, 100)
+            ax2.legend(loc="upper left")
+
+            plt.tight_layout()
+            plt.show()
+
+            return True
+
 
 #Función para visualizar una matriz de correlación mediante un mapa de calor, dadas también las etiquetas cuya correlación está representada por la matriz
 def mapa_calor(matriz_corr, etiquetas, titulo):
@@ -79,6 +145,8 @@ class Cartera:
     #Pesos: Lista de pesos de cada uno de los activos en la cartera
     #ReturnsCartera: Serie con los retornos logarítmicos de todos los activos de la cartera para el período considerado
     #MatrizCorrelacion: Matriz de correlación de los activos de la cartera
+    #ClosePonderado: Lista de precios ponderados de cierre para la cartera
+    #Dates: Lista de fechas de las series de precios que componen la cartera
     #NombreCartera: Nombre con el que queremos identificar a la cartera
 
     activos: List[SeriePrecios]
@@ -86,6 +154,8 @@ class Cartera:
     pesos: np.array
     returnsCartera: pd.DataFrame
     matrizCorrelacion: np.array
+    closePonderado: np.array
+    dates: np.array
     nombreCartera: str
 
     def __init__(self, archivosCSV, rutaCSV, pesos, nombreCartera):
@@ -104,6 +174,7 @@ class Cartera:
             if len(set(fechasInicio)) != 1:
                 print("La fecha de inicio del período en todos los archivos debe ser la misma")
                 return
+
             
             fechasFin = [archivo.split('_')[3] for archivo in archivosCSV]
             if len(set(fechasFin)) != 1:
@@ -112,6 +183,9 @@ class Cartera:
             
             #Vamos introduciendo en la lista todas las instancias de SeriePrecios creadas
             self.activos = [SeriePrecios(rutaCSV + "\\" + archivo) for archivo in archivosCSV]
+
+            #Como las fechas son las mismas para todos los activos, cojemos el primero por ejemplo, y los pasamos a formato datetime
+            self.dates = np.array(self.activos[0].obtenerFechas(), dtype='datetime64[D]')
 
             #Debe haber tantos pesos como activos tenga la cartera
             if self.numActivos != len(pesos):
@@ -129,6 +203,9 @@ class Cartera:
             #Calculamos la matriz de correlación de los retornos
             self.matrizCorrelacion = build_corr_matrix(self.returnsCartera)
 
+            preciosCierre = np.vstack([activo.obtenerClosePrices() for activo in self.activos])
+            self.closePonderado = np.sum(preciosCierre*self.pesos[:,np.newaxis],axis=0)
+
             self.nombreCartera = nombreCartera
         except Exception as e:
             print("Alguno de los archivos pasados no es válido")
@@ -141,9 +218,26 @@ class Cartera:
         
         return self.activos[posicion]
     
+    #Devuelve todos los activos de la cartera
+    def obtenerActivos(self):
+        return self.activos
+    
+    #Devuelve todas las fechas de las series de precios que componen la cartera
+    def obtenerFechas(self):
+        return self.dates
+    
+    #Devuelve todos los pesos de la cartera
+    def obtenerPesos(self):
+        return self.pesos
+    
+    #Devuelve el nombre de la cartera
+    def obtenerNombreCartera(self):
+        return self.nombreCartera
+    
     #Devuelve el número de activos que componen la cartera
     def obtenerNumActivos(self):
         return self.numActivos
+    
 
     #Simulación de un proceso de Monte Carlo para los valores de una cartera
     #Medias: Lista de medias de retornos logarítmicos para cada uno de los activos que componen la cartera
@@ -256,6 +350,16 @@ class Cartera:
             print("Error al visualizar mapa de calor de las correlaciones entre los activos de la cartera")
             return
         
+        #En este caso hemos elegido una ventana de 20 días
+        if not grafica_media_movil(20, self):
+            print("Error al visualizar media móvil de 20 días para la cartera")
+            return
+        
+        if not grafica_RSI_activos(self):
+            print("Error al visualzizar RSI de las componentes de la cartera")
+            return
+
+        
     #Este método nos va a ayudar a poder serializar en un json campos de tipo dataframe
     def to_dict(self):
         return {
@@ -264,6 +368,8 @@ class Cartera:
             "pesos": self.pesos.tolist(),
             "returnsCartera": self.returnsCartera.to_dict(orient="records"),
             "matrizCorrelacion": self.matrizCorrelacion.tolist(),
+            "closePonderado": self.closePonderado.tolist(),
+            "dates": [str(fecha) for fecha in self.dates],
             "nombreCartera": self.nombreCartera
         }
     
@@ -279,6 +385,9 @@ class Cartera:
         obj.pesos = np.array(datos["pesos"])
         obj.returnsCartera = pd.DataFrame(datos["returnsCartera"])
         obj.matrizCorrelacion = np.array(datos["matrizCorrelacion"])
+        obj.closePonderado = np.array(datos["closePonderado"])
+        obj.dates = [np.datetime64(fecha) for fecha in datos["dates"]]
+        obj.dates = np.array(datos["dates"])
         obj.nombreCartera = datos["nombreCartera"]
 
         return obj

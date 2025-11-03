@@ -58,8 +58,6 @@ def normalizar_texto(cadena):
     cadena = ''.join(c for c in unicodedata.normalize('NFD', cadena) if unicodedata.category(c) != 'Mn')
     return cadena
 
-
-
 #Función que realiza una simulación de Monte Carlo de los valores de un activo
 #Media: Es la media de la distribución normal sobre la que se van a generar los retornos logarítmicos
 #Desviacion_Tipica: Es la desviación típica de dicha distribución
